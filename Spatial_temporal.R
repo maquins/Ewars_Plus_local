@@ -207,7 +207,7 @@ res_promise<-future_promise({
   #inla.dynload.workaround()
   mymodel(formula0.2,df)
   },
-                    #packages =c("INLA"),
+                    packages =c("INLA"),
                     globals =global_Objects,
                     seed=T)
 #res_out<<-res
