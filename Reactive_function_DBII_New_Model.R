@@ -15,16 +15,16 @@ observeEvent(input$dat_prospective,{
   boundary_file<-var_names_New_model()$SHP
   boundary_file$district<-as.numeric(boundary_file$district)
   
-  if(!dir.exists(paste0(getwd(),"/INLA"))){
-    untar("INLA_20.03.17.tar.gz")
+  #if(!dir.exists(paste0(getwd(),"/INLA"))){
+    #untar("INLA_20.03.17.tar.gz")
     
-  }
+  #}
   
   
   
-  pkgload::load_all(paste0(getwd(),"/INLA"))
+  #pkgload::load_all(paste0(getwd(),"/INLA"))
   
-  inla.dynload.workaround()
+  #inla.dynload.workaround()
 
   ## read in uploaded data
   
