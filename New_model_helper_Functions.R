@@ -357,13 +357,13 @@ get_weekly_prop_pred<-function(pp){
                       paste0(pros_week_remove$year,'_',pros_week_remove$week) &
                       data_Combined_model$source=="predict")
   
-  all_basis_vars_now<-lapply(all_basis_vars, FUN=function(x)  x[-id.remove1,])
-  df_pred<-df[-id.remove1,]
-  dat_Now<-data_Combined_model[-id.remove1,]
+  all_basis_vars_now<<-lapply(all_basis_vars_pros, FUN=function(x)  x[-id.remove1,])
+  df_pred<<-df_pros[-id.remove1,]
+  dat_Now<<-data_Combined_model[-id.remove1,]
   idx.pred<<-which(dat_Now$source=="predict")
   
-  dim(df_pred)
-  dim(all_basis_vars_now$basis_meantemperature)
+  #dim(df_pred)
+  #dim(all_basis_vars_now$basis_meantemperature)
   basis_var_n<-paste0('all_basis_vars_now$',names(all_basis_vars_now))
   
   if(length(add.var)>0){
@@ -390,7 +390,7 @@ get_weekly_prop_pred<-function(pp){
     y.pred[, s.idx] <- rnbinom(mpred, mu = exp(xx.sample[-1]), size = xx.sample[1])
   }
   
-  mus<-data.frame(mu_p025=    exp(apply(xx.s[-1,],1, quantile,probs=c(0.025))),
+  mus<<-data.frame(mu_p025=    exp(apply(xx.s[-1,],1, quantile,probs=c(0.025))),
                   mu_mean=    exp(apply(xx.s[-1,],1, mean)),
                   mu_p975=    exp(apply(xx.s[-1,],1, quantile,probs=c(0.975))),
                   size_p025=    quantile(xx.s[1,],0.025),
