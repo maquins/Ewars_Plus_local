@@ -272,10 +272,10 @@ time_52<-system.time({
     #pkgload::load_all(paste0(getwd(),"/INLA"))
     
     #inla.dynload.workaround()
-    res_m<-mymodel(formula0.2,df)
-    theta_beg<<-res_m$internal.summary.hyperpar$mean 
-    foreach(a=1:52,.combine =rbind)%do% get_weekly_prediction(a)
-    #readRDS("pred_eval_2013.rds")
+    #res_m<-mymodel(formula0.2,df)
+    #theta_beg<<-res_m$internal.summary.hyperpar$mean 
+    #foreach(a=1:52,.combine =rbind)%do% get_weekly_prediction(a)
+    readRDS("pred_eval_2013.rds")
     },
                                         packages =c("dplyr","INLA"),
   globals=c("df","year_eval","run_grid","YR.val",
@@ -1125,11 +1125,9 @@ observeEvent(c(input$district_validation,
   print(probs)
   idx.comp<<-which(!is.na(data_use_$outbreak))
   
-  reportROC(gold=as.numeric(data_use_$outbreak)[idx.comp],
-            predictor=probs[idx.comp])
   
-  roc_reporta<-reportROC(gold=as.numeric(data_use_$outbreak)[idx.comp],
-                        predictor=probs[idx.comp])
+  roc_try<-try(reportROC(gold=as.numeric(data_use_$outbreak)[idx.comp],
+                         predictor=probs[idx.comp]),outFile =warning("please.."))
   
   roc_tab_names<-c("Cutoff","AUC","AUC.SE","AUC.low","AUC.up","P","ACC",
                    "ACC.low","ACC.up","SEN","SEN.low","SEN.up",
@@ -1140,10 +1138,11 @@ observeEvent(c(input$district_validation,
   kdd<-data.frame(t(rep(as.character(NA),length(roc_tab_names))))
   names(kdd)<-roc_tab_names
   
-  if(is.null(roc_reporta)){
+  if(class(roc_try) %in% c("NULL","try-error")){
     roc_report<-kdd
   }else{
-    roc_report<-roc_reporta
+    roc_report<-reportROC(gold=as.numeric(data_use_$outbreak)[idx.comp],
+                          predictor=probs[idx.comp])
   }
   
   if(roc_report$Cutoff%in% c(NA,-Inf,NaN,Inf)){

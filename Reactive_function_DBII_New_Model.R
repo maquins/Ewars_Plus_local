@@ -20,6 +20,10 @@ observeEvent(input$dat_prospective,{
     
   #}
   
+  pred_vals_all_promise %...>%  
+    {
+      pred_vals_all<<-.
+    }
   
   
   #pkgload::load_all(paste0(getwd(),"/INLA"))
@@ -108,7 +112,7 @@ observeEvent(input$dat_prospective,{
   all_basis_vars_pros<<-lapply(all_basis_vars_all_pros, FUN=function(x)  x[-id.remove_pros,])
   cat("it computed...\n")
 
-  data_Combined_model<-data_Combined[-id.remove_pros,]
+  data_Combined_model<<-data_Combined[-id.remove_pros,]
   
   print(dim(all_basis_vars_pros[[1]]))
   
@@ -119,29 +123,33 @@ observeEvent(input$dat_prospective,{
   
   district_index$district_index<-1:nrow(district_index)
   
-  data_Combined_model<-merge(data_Combined_model,district_index,by="district",sort=F)
+  data_Combined_model<<-merge(data_Combined_model,district_index,by="district",sort=F)
   
   min.year<-min(data_Combined_model$year)
   
-  data_Combined_model$year_index <- data_Combined_model$year - (min.year-1)
+  data_Combined_model$year_index <<- data_Combined_model$year - (min.year-1)
   
   
   ##create model data
   
-  fixe_alarm_vars<-input$other_alarm_indicators_New_model
+  fixe_alarm_vars<<-input$other_alarm_indicators_New_model
   
-  add.var<-fixe_alarm_vars[which(!fixe_alarm_vars%in% alarm_vars)]
+  add.var<<-fixe_alarm_vars[which(!fixe_alarm_vars%in% alarm_vars)]
   
   
   if(length(add.var)>0){
-    sel_mod.vars<-c(number_of_cases,pop.var.dat,"week","year_index","district_index",alarm_vars,add.var)
+    sel_mod.vars<<-c(number_of_cases,pop.var.dat,"week","year_index","district_index",alarm_vars,add.var)
   }else{
-    sel_mod.vars<-c(number_of_cases,pop.var.dat,"week","year_index","district_index",alarm_vars)
+    sel_mod.vars<<-c(number_of_cases,pop.var.dat,"week","year_index","district_index",alarm_vars)
     
   }
-  df_pros<-data_Combined_model[,sel_mod.vars]
-  names(df_pros)[1:5]<-c("Y","E","T1","T2","S1")
-  df_pros$E<-df_pros$E/1e5
+  cat(paste(names(data_Combined_model),collapse =","),sep='\n')
+  cat(paste(sel_mod.vars,collapse =","),sep='\n')
+  
+  df_pros<<-data_Combined_model[,sel_mod.vars]
+  exists("df_pros")
+  names(df_pros)[1:5]<<-c("Y","E","T1","T2","S1")
+  df_pros$E<<-df_pros$E/1e5
   
   #all_basis_vars_check<<-all_basis_vars
   
@@ -153,13 +161,13 @@ observeEvent(input$dat_prospective,{
                    df=df_pros)
   
   names(df_pros)
-  baseformula <- Y ~ 1 + f(T1,replicate = S1, model = "rw1", cyclic = TRUE, constr = TRUE,
+  baseformula <<- Y ~ 1 + f(T1,replicate = S1, model = "rw1", cyclic = TRUE, constr = TRUE,
                            scale.model = TRUE,  hyper = precision.prior) +
     f(S1,replicate=T2, model = "iid") 
   
   #base_model <- mymodel(baseformula,df)
   
-  basis_var_n<-paste0('all_basis_vars_pros$',names(all_basis_vars_pros))
+  basis_var_n<<-paste0('all_basis_vars_pros$',names(all_basis_vars_pros))
   
   ## get the variable not among spline and keep as linear
   
@@ -180,28 +188,35 @@ observeEvent(input$dat_prospective,{
   
   ## get the predictions one week at a times
   
-  pros_week<-prediction_Data %>% 
+  pros_week<<-prediction_Data %>% 
     dplyr::select(year,week) %>% 
     unique()
   
+  export_tables<-c("data_Combined_model","pros_week",
+                   "pros_week_remove","all_basis_vars",
+                   "all_basis_vars_pros",
+                   "df_pros","baseformula","add.var")
+  
   time_52<-system.time({
-    forecast_dat<-foreach(a=1:nrow(pros_week),.combine =rbind)%do% get_weekly_prop_pred(a)
-    
+    forecast_dat<<-foreach(a=1:nrow(pros_week),
+                          .combine =rbind,
+                          .export =export_tables)%do% get_weekly_prop_pred(a)
+    #saveRDS(forecast_dat,"forecast_dat_2022_04_13.rds")
   })
   time_52[3]/60
   
-  #forecast_dat<-readRDS("forecast_dat.rds")
+  #forecast_dat<<-readRDS("forecast_dat_2022_04_13.rds")
   
   ## read in validation data
   
-  pred_vals_all<-readRDS("pred_eval.rds") 
+  #pred_vals_all<-readRDS("pred_eval.rds") 
   
-  sel_var_endemic<-c(base_vars,number_of_cases,population)
+  sel_var_endemic<<-c(base_vars,number_of_cases,population)
   
-  dat.4.endemic<-data_augmented[,sel_var_endemic]
+  dat.4.endemic<<-data_augmented[,sel_var_endemic]
   names(dat.4.endemic)<-c(base_vars,"cases","pop")
   
-  
+  last_Yr_aug<-max(data_augmented$year,na.rm =T)
   
   
   ## now work with specific week
@@ -221,7 +236,7 @@ observeEvent(input$dat_prospective,{
                      } 
                    
                    for_endemic<-dat.4.endemic %>% 
-                     dplyr::filter(!is.na(cases) & !year==2013) %>% 
+                     dplyr::filter(!is.na(cases) & !year==last_Yr_aug) %>% 
                      dplyr::mutate(rate=(cases/pop)*1e5) %>% 
                      dplyr::group_by(district,week) %>% 
                      dplyr::summarise(.groups="drop",mean=mean(rate,na.rm =T),
@@ -234,7 +249,7 @@ observeEvent(input$dat_prospective,{
                     p25,p975,index) 
     
     pros_forcasted<-forecast_dat %>% 
-      dplyr::filter(district==input$district_prospective) %>% 
+      dplyr::filter(district==district_prospective) %>% 
       dplyr::select(district,year,week,mu_mean,size_mean,observed,predicted,
                     p25,p975,pop,index) 
     
@@ -268,27 +283,59 @@ observeEvent(input$dat_prospective,{
     print(probs)
     idx.comp<-which(!is.na(data_use_$outbreak))
     
-    reportROC(gold=as.numeric(data_use_$outbreak)[idx.comp],
-              predictor=probs[idx.comp])
-    
-    roc_report<-reportROC(gold=as.numeric(data_use_$outbreak)[idx.comp],
-                          predictor=probs[idx.comp])
-    
-    sens_ppv<-tribble(~var,~val,~lower,~upper,
-                      "Cutoff probability",roc_report$Cutoff,NA,NA,
-                      "Area under the Curve (AUC)",roc_report$AUC,roc_report$AUC.low,roc_report$AUC.up,
-                      "Accuracy",roc_report$ACC ,roc_report$ACC.low,roc_report$ACC.up,
-                      "Sensitivity",roc_report$SEN,roc_report$SEN.low,roc_report$SEN.up,
-                      "Specificity",roc_report$SPE,roc_report$SPE.low,roc_report$SPE.up,
-                      "Positive Predictive Value (PPV)",roc_report$PPV,roc_report$PPV.low,roc_report$PPV.up,
-                      "Negative Predictive Value (NPV)",roc_report$NPV,roc_report$NPV.low,roc_report$NPV.up)
     
     
-    data_use_a<-data_use_ %>% 
-      dplyr::mutate(prob_exceed=probs,
-                    cutoff=roc_report$Cutoff,
-                    validation_alarm=case_when(outbreak==(prob_exceed>=cutoff)~prob_exceed,
-                                               TRUE~as.numeric(NA)))
+    roc_try<-try(reportROC(gold=as.numeric(data_use_$outbreak)[idx.comp],
+                               predictor=probs[idx.comp]),outFile =warning("please.."))
+    
+    roc_tab_names<-c("Cutoff","AUC","AUC.SE","AUC.low","AUC.up","P","ACC",
+                     "ACC.low","ACC.up","SEN","SEN.low","SEN.up",
+                     "SPE","SPE.low","SPE.up","PLR","PLR.low",
+                     "PLR.up","NLR","NLR.low","NLR.up","PPV",
+                     "PPV.low","PPV.up","NPV","NPV.low","NPV.up")
+    
+    kdd<-data.frame(t(rep(as.character(NA),length(roc_tab_names))))
+    names(kdd)<-roc_tab_names
+    
+    if(class(roc_try) %in% c("NULL","try-error")){
+      roc_report<-kdd
+    }else{
+      roc_report<-reportROC(gold=as.numeric(data_use_$outbreak)[idx.comp],
+                            predictor=probs[idx.comp])
+    }
+    
+    if(roc_report$Cutoff%in% c(NA,-Inf,NaN,Inf)){
+      sens_ppv<-tribble(~var,~val,~CI_Lower,~CI_Upper,
+                        "Cutoff probability",roc_report$Cutoff,NA,NA,
+                        "Area under the Curve (AUC)",roc_report$AUC,roc_report$AUC.low,roc_report$AUC.up,
+                        "Accuracy",roc_report$ACC ,roc_report$ACC.low,roc_report$ACC.up,
+                        "Sensitivity",roc_report$SEN,roc_report$SEN.low,roc_report$SEN.up,
+                        "Specificity",roc_report$SPE,roc_report$SPE.low,roc_report$SPE.up,
+                        "Positive Predictive Value (PPV)",roc_report$PPV,roc_report$PPV.low,roc_report$PPV.up,
+                        "Negative Predictive Value (NPV)",roc_report$NPV,roc_report$NPV.low,roc_report$NPV.up)
+      
+      data_use_a<-data_use_ %>% 
+        dplyr::mutate(prob_exceed=probs,
+                      cutoff=NA,
+                      validation_alarm=as.numeric(NA))
+      
+    }else{
+      sens_ppv<-tribble(~var,~val,~CI_Lower,~CI_Upper,
+                        "Cutoff probability",roc_report$Cutoff,NA,NA,
+                        "Area under the Curve (AUC)",roc_report$AUC,roc_report$AUC.low,roc_report$AUC.up,
+                        "Accuracy",roc_report$ACC ,roc_report$ACC.low,roc_report$ACC.up,
+                        "Sensitivity",roc_report$SEN,roc_report$SEN.low,roc_report$SEN.up,
+                        "Specificity",roc_report$SPE,roc_report$SPE.low,roc_report$SPE.up,
+                        "Positive Predictive Value (PPV)",roc_report$PPV,roc_report$PPV.low,roc_report$PPV.up,
+                        "Negative Predictive Value (NPV)",roc_report$NPV,roc_report$NPV.low,roc_report$NPV.up)  
+      
+      data_use_a<-data_use_ %>% 
+        dplyr::mutate(prob_exceed=probs,
+                      cutoff=as.numeric(roc_report$Cutoff),
+                      validation_alarm=case_when((prob_exceed>=cutoff)~prob_exceed,
+                                                 TRUE~as.numeric(NA)))
+    }
+    
     
     pros_forcasted_a<-pros_forcasted_ %>% 
       dplyr::mutate(prob_exceed=probs_forecast,
@@ -310,7 +357,7 @@ observeEvent(input$dat_prospective,{
                     endemic_chanel=round(threshold,6)) %>% 
       dplyr::select(district,week,outbreak_moving,outbreak_moving_sd,outbreak_moving_limit,
                     endemic_chanel) %>% 
-      dplyr::filter(district==input$district_prospective) %>% 
+      dplyr::filter(district==district_prospective) %>% 
       dplyr::left_join(pros_forcasted_b,by=c("district","week")) %>% 
       dplyr::mutate(outbreak_period=case_when(outbreak>endemic_chanel~1,
                                               TRUE~0),
@@ -467,7 +514,7 @@ observeEvent(input$dat_prospective,{
     
     ## render the tables
     dat_pros_Dis<-prediction_Data %>% 
-      dplyr::filter(district==input$district_prospective) %>% 
+      dplyr::filter(district==district_prospective) %>% 
       dplyr::arrange(year,week)
     
     ## identify variables with decimals
