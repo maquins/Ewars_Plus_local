@@ -272,10 +272,10 @@ time_52<-system.time({
     #pkgload::load_all(paste0(getwd(),"/INLA"))
     
     #inla.dynload.workaround()
-    #res_m<-mymodel(formula0.2,df)
-    #theta_beg<<-res_m$internal.summary.hyperpar$mean 
-    #foreach(a=1:52,.combine =rbind)%do% get_weekly_prediction(a)
-    readRDS("pred_eval_2013.rds")
+    res_m<-mymodel(formula0.2,df)
+    theta_beg<<-res_m$internal.summary.hyperpar$mean 
+    foreach(a=1:52,.combine =rbind)%do% get_weekly_prediction(a)
+    #readRDS("pred_eval_2013.rds")
     },
                                         packages =c("dplyr","INLA"),
   globals=c("df","year_eval","run_grid","YR.val",
