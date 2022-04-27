@@ -20,10 +20,7 @@ observeEvent(input$dat_prospective,{
     
   #}
   
-  pred_vals_all_promise %...>%  
-    {
-      pred_vals_all<<-.
-    }
+  
   
   
   #pkgload::load_all(paste0(getwd(),"/INLA"))
@@ -197,7 +194,9 @@ observeEvent(input$dat_prospective,{
                    "all_basis_vars_pros",
                    "df_pros","baseformula","add.var")
   
-  time_52<-system.time({
+  #head(pred_vals_all)
+  
+  time_52_pros<<-system.time({
     forecast_dat<<-foreach(a=1:nrow(pros_week),
                           .combine =rbind,
                           .export =export_tables)%do% get_weekly_prop_pred(a)
@@ -217,6 +216,8 @@ observeEvent(input$dat_prospective,{
   names(dat.4.endemic)<-c(base_vars,"cases","pop")
   
   last_Yr_aug<-max(data_augmented$year,na.rm =T)
+  
+  
   
   
   ## now work with specific week
@@ -242,7 +243,11 @@ observeEvent(input$dat_prospective,{
                      dplyr::summarise(.groups="drop",mean=mean(rate,na.rm =T),
                                       sd=sd(rate,na.rm =T)) %>% 
                      dplyr::mutate(threshold=mean+z_outbreak_new*(sd))
-    
+                   
+                 
+                   pred_vals_all_promise %...>%  
+                     {
+                       pred_vals_all<<-.
     data_use<-pred_vals_all %>% 
       dplyr::filter(district==district_prospective) %>% 
       dplyr::select(district,year,week,mu_mean,size_mean,observed,predicted,
@@ -549,7 +554,7 @@ observeEvent(input$dat_prospective,{
     
     output$prediction_tab_pros<-renderDataTable(data.table(tem.d2))
     
-    
+                     }
   })
   
 })
