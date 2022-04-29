@@ -202,7 +202,7 @@ observeEvent(input$dat_prospective,{
                           .export =export_tables)%do% get_weekly_prop_pred(a)
     #saveRDS(forecast_dat,"forecast_dat_2022_04_13.rds")
   })
-  time_52[3]/60
+  #time_52[3]/60
   
   #forecast_dat<<-readRDS("forecast_dat_2022_04_13.rds")
   
