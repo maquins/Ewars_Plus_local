@@ -1,14 +1,13 @@
 
-
-library(shiny)
-library(plotly)
-library(shinydashboardPlus)
-library(shinydashboard)
-library(shinyjs)
-library(tmap)
-library(xts)
-library(dygraphs)
-library(leaflet)
+suppressMessages(library(shiny,warn.conflicts =F))
+suppressMessages(library(plotly,warn.conflicts =F))
+suppressMessages(library(shinydashboardPlus,warn.conflicts =F))
+suppressMessages(library(shinydashboard,warn.conflicts =F))
+suppressMessages(library(shinyjs,warn.conflicts =F))
+suppressMessages(library(tmap,warn.conflicts =F))
+suppressMessages(library(xts,warn.conflicts =F))
+suppressMessages(library(dygraphs,warn.conflicts =F))
+suppressMessages(library(leaflet,warn.conflicts =F))
 
 
 source("objects in UI.R")

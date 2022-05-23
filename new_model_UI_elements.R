@@ -44,7 +44,7 @@ year_validation<-sliderInput(inputId = "new_model_Year_validation",
 N_lags<-sliderInput(inputId = "nlags",
                              label = "Lag Weeks",
                              min = 4,
-                             max=12,
+                             max=24,
                              value =12,
                              sep='',
                              step=1)
@@ -207,7 +207,9 @@ tabPanel("Model Validation",
                                  )
                                         ))
                    )
-         )
+         ),
+id="to_show2",
+selected="Model Validation"
 )
 
 

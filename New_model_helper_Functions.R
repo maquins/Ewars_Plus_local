@@ -36,12 +36,14 @@ mymodel <- function(formula, data = df, family = "nbinomial", config = FALSE)
   model <- inla(formula = formula, data = data, family = family, offset = log(E),
                 control.inla = list(strategy = 'adaptive'), 
                 control.compute = list(dic = TRUE, config = config, 
-                                       cpo = TRUE, return.marginals = FALSE),
+                                       cpo = TRUE, return.marginals = T,
+                                       return.marginals.predictor=T),
                 control.fixed = list(correlation.matrix = TRUE, 
                                      prec.intercept = 1, prec = 1),
                 control.predictor = list(link = 1, compute = TRUE), 
                 verbose = F)
  # model <- inla.rerun(model)
+  gc()
   return(model)
 }
 
@@ -55,8 +57,7 @@ mymodel2 <- function(formula, data = df, family = "nbinomial", config = FALSE)
                 control.fixed = list(correlation.matrix = TRUE, 
                                      prec.intercept = 1, prec = 1),
                 control.predictor = list(link = 1, compute = TRUE), 
-                verbose = F,
-                num.threads="8:1")
+                verbose = F)
   #model <- inla.rerun(model)
   model
 }
@@ -72,7 +73,8 @@ mymodel3 <- function(formula, data = df, family = "nbinomial", config = FALSE)
                                      prec.intercept = 1, prec = 1),
                 control.predictor = list(link = 1, compute = TRUE), 
                 control.mode =list(restart=T,theta=theta_beg),
-                verbose = F)
+                verbose = F,
+                num.threads="2:1")
                 #num.threads="6:1")
   #model <- inla.rerun(model)
   model
@@ -89,8 +91,7 @@ mymodelZIF <- function(formula, data = df, family = "zeroinflatednbinomial0", co
                 control.fixed = list(correlation.matrix = TRUE, 
                                      prec.intercept = 1, prec = 1),
                 control.predictor = list(link = 1, compute = TRUE), 
-                verbose = T,
-                num.threads="8:1")
+                verbose = T)
   # model <- inla.rerun(model)
   return(model)
 }
@@ -347,9 +348,80 @@ get_weekly_prediction<-function(pp){
   pred_vals
 }
 
+get_weekly_prediction_4<-function(pp){
+  
+  time_Cross<-system.time({
+    
+  weeks_ruN<-run_grid[pp,]$beg_week:run_grid[pp,]$end_week
+  #cat(paste0("\nYear_Week  ",run_grid[pp,]$YR,'><',run_grid[pp,]$week),'\n')
+  df_pred<<-df1 
+  idx.pred<<-which(df_pred$T2== run_grid[pp,]$YR&df_pred$T1 %in%  weeks_ruN)
+  df_pred$Y[idx.pred]<-NA
+  
+  #if(exists("pred_one")){
+  #rm(pred_one)
+  #}
+  pred_one<-mymodel3(formula0.2a,df_pred,config =T)
+  
+  set.seed(4500)
+  s <- 1000
+  
+  xx <- inla.posterior.sample(s,pred_one,num.threads =2)
+  xx.s <- inla.posterior.sample.eval(function(...) c(theta[1], Predictor[idx.pred]), xx)
+  #dim(xx.s)
+  mpred<-length(idx.pred)
+  y.pred <- matrix(NA,mpred, s)
+  
+  #s.idx<-2
+  for(s.idx in 1:s) {
+    xx.sample <- xx.s[, s.idx]
+    y.pred[, s.idx] <- rnbinom(mpred, mu = exp(xx.sample[-1]), size = xx.sample[1])
+  }
+  
+  mus<-data.frame(mu_p025=    exp(apply(xx.s[-1,],1, quantile,probs=c(0.025))),
+                  mu_mean=    exp(apply(xx.s[-1,],1, mean)),
+                  mu_p975=    exp(apply(xx.s[-1,],1, quantile,probs=c(0.975))),
+                  size_p025=    quantile(xx.s[1,],0.025),
+                  size_mean=    mean(xx.s[1,]),
+                  size_p975=    quantile(xx.s[1,],0.975)
+  )
+  YR<-run_grid[pp,]$YR
+  year_Now<-(beg.year:end.year)[YR]
+  pred_vals<-data.frame(year=year_Now,
+                        district=data_augmented$district[idx.pred],
+                        week=df_pred$T1[idx.pred],
+                        mus,
+                        observed=df1$Y[idx.pred],
+                        predicted=apply(y.pred,1,mean),
+                        p25=apply(y.pred,1,quantile,probs=c(0.025)),
+                        p50=apply(y.pred,1,quantile,probs=c(0.5)),
+                        p975=apply(y.pred,1,quantile,probs=c(0.975)),
+                        fitted=pred_one$summary.fitted.values$mean[idx.pred],
+                        fittedp25=pred_one$summary.fitted.values$`0.025quant`[idx.pred],
+                        fitted975=pred_one$summary.fitted.values$`0.975quant`[idx.pred],
+                        
+                        index=idx.pred,
+                        row.names =NULL
+  )
+  
+  #cor(pred_vals$fitted,pred_vals$predicted)
+  #pp<-6
+  #52/4
+  })
+  cat(paste0('done weeks ',run_grid[pp,]$beg_week,' to ',run_grid[pp,]$end_week,' of ',year_Now,' ... ',pp,' of',nrow(run_grid) ,' \n'))
+  cat(paste('Total running time:',round(time_Cross[3]/60,2)),'mins\n\n')
+  rm(xx)
+  rm(xx.s)
+  rm(y.pred)
+  gc()
+  pred_vals
+}
+
 #pp<-1
 
 get_weekly_prop_pred<-function(pp){
+  
+  time_pred<-system.time({
   pros_week_remove<-pros_week[-pp,]
   
   
@@ -378,8 +450,8 @@ get_weekly_prop_pred<-function(pp){
   set.seed(4500)
   s <- 1000
   
-  xx <<- inla.posterior.sample(s,pred_one)
-  xx.s <<- inla.posterior.sample.eval(function(...) c(theta[1], Predictor[idx.pred]), xx)
+  xx <- inla.posterior.sample(s,pred_one,num.threads =2)
+  xx.s <- inla.posterior.sample.eval(function(...) c(theta[1], Predictor[idx.pred]), xx)
   #dim(xx.s)
   mpred<-length(idx.pred)
   y.pred <- matrix(NA,mpred, s)
@@ -391,11 +463,11 @@ get_weekly_prop_pred<-function(pp){
   }
   
   mus<<-data.frame(mu_p025=    exp(apply(xx.s[-1,],1, quantile,probs=c(0.025))),
-                  mu_mean=    exp(apply(xx.s[-1,],1, mean)),
-                  mu_p975=    exp(apply(xx.s[-1,],1, quantile,probs=c(0.975))),
-                  size_p025=    quantile(xx.s[1,],0.025),
-                  size_mean=    mean(xx.s[1,]),
-                  size_p975=    quantile(xx.s[1,],0.975)
+                   mu_mean=    exp(apply(xx.s[-1,],1, mean)),
+                   mu_p975=    exp(apply(xx.s[-1,],1, quantile,probs=c(0.975))),
+                   size_p025=    quantile(xx.s[1,],0.025),
+                   size_mean=    mean(xx.s[1,]),
+                   size_p975=    quantile(xx.s[1,],0.975)
   )
   
   pred_vals<-data.frame(year=unique(pros_week$year),
@@ -416,6 +488,13 @@ get_weekly_prop_pred<-function(pp){
                         row.names =NULL
   )
   
+  })
+  cat(paste0('done week  ... ',pp,' of',nrow(pros_week) ,' \n'))
+  cat(paste('Total running time:',round(time_pred[3]/60,2)),'mins\n\n')
+  rm(xx)
+  rm(xx.s)
+  rm(y.pred)
+  gc()
   #cor(pred_vals$fitted,pred_vals$predicted)
   
   pred_vals
@@ -463,7 +542,7 @@ create_input_UI_year<-function(var){
   aa<-tribble(~var,
               paste0('sliderInput(inputId="',var,'",'),
               "label = 'Year',",      
-              'min=max(years.dat)-1,',
+              'min=min(years.dat)+1,',
               'max=max(years.dat),',
               'value =max(years.dat),',
               'sep="",',
@@ -512,7 +591,7 @@ validation_tab_Func<-function(){
                           'column(12,offset=4,z_outbreak_New)),',
                           'tabsetPanel(tabPanel("Runin period",',
                           'plotOutput("runin_ggplot_New_model"),',
-                          'dygraphOutput("runin_interactive_New_model")),',
+                          'dygraphOutput("runin_interactive_New_model"),id="to_show"),',
                           'tabPanel("Validation_period",',
                           'tabsetPanel(',
                           'tabPanel("Plots",',

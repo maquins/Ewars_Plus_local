@@ -197,10 +197,13 @@ observeEvent(input$dat_prospective,{
   #head(pred_vals_all)
   
   time_52_pros<<-system.time({
+    p_progress_pros <<- Progress$new()
+    p_progress_pros$set(value = NULL, message ="Running predictions.." )
     forecast_dat<<-foreach(a=1:nrow(pros_week),
                           .combine =rbind,
                           .export =export_tables)%do% get_weekly_prop_pred(a)
     #saveRDS(forecast_dat,"forecast_dat_2022_04_13.rds")
+    p_progress_pros$close()
   })
   #time_52[3]/60
   
@@ -216,7 +219,14 @@ observeEvent(input$dat_prospective,{
   names(dat.4.endemic)<-c(base_vars,"cases","pop")
   
   last_Yr_aug<-max(data_augmented$year,na.rm =T)
+  if(is.null(input$new_model_Year_validation)){
+    year_eval<<-max(data_augmented$year)
+  }else{
+    year_eval<<-input$new_model_Year_validation
+    
+  }
   
+  #Years_orig<<-year_eval:end.year
   
   
   
@@ -237,7 +247,7 @@ observeEvent(input$dat_prospective,{
                      } 
                    
                    for_endemic<-dat.4.endemic %>% 
-                     dplyr::filter(!is.na(cases) & !year==last_Yr_aug) %>% 
+                     dplyr::filter(!is.na(cases) & !year>=year_eval) %>% 
                      dplyr::mutate(rate=(cases/pop)*1e5) %>% 
                      dplyr::group_by(district,week) %>% 
                      dplyr::summarise(.groups="drop",mean=mean(rate,na.rm =T),
@@ -249,7 +259,7 @@ observeEvent(input$dat_prospective,{
                      {
                        pred_vals_all<<-.
     data_use<-pred_vals_all %>% 
-      dplyr::filter(district==district_prospective) %>% 
+      dplyr::filter(district==district_prospective & year==last_Yr_aug) %>% 
       dplyr::select(district,year,week,mu_mean,size_mean,observed,predicted,
                     p25,p975,index) 
     
