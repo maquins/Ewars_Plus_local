@@ -1,6 +1,6 @@
 
 #Sys.sleep(120)
-Out.Mod<-eventReactive(c(
+Out.Mod<<-eventReactive(c(
   input$alarm_indicators_New_model,
   input$nlags,
   input$other_alarm_indicators_New_model,
@@ -16,6 +16,7 @@ Out.Mod<-eventReactive(c(
     dat_A<-var_names_New_model()$dat %>% 
       dplyr::arrange(district,year,week) %>% 
       dplyr::filter(district %in% boundary_file$district &!week==53)
+      #dplyr::filter(district %in% c(3,15) &!week==53)
     
     alarm_indicators<-input$alarm_indicators_New_model
     cat(paste('\nAlarm indicators now ..\n'),paste(input$alarm_indicators_New_model,collapse =','),'\n\n')
@@ -196,7 +197,13 @@ Out.Mod<-eventReactive(c(
     #res<-mymodel(formula0.2,df)
     global_Objects<-c("mymodel","formula0.2","df","precision.prior","all_basis_vars")
     
-    res_promise<-future_promise({mymodel(formula0.2,df)},
+    res_promise<-future_promise({
+      #pkgload::load_all(paste0(getwd(),"/INLA"),export_all =F)
+      #inla.dynload.workaround()
+  
+      #inla.binary.install()
+      mymodel(formula0.2,df)
+      },
                                 packages =c("INLA"),
                                 globals =global_Objects,
                                 seed=T)
@@ -260,11 +267,13 @@ Out.Mod<-eventReactive(c(
       
       run_grid<<-foreach(a=all_YR_r,.combine =rbind)%do% data.frame(beg_week=1,
                                                                     end_week=52,
-                                                                    YR=a)
+                                                                    YR=a,
+                                                                    cat=0)
     }else{
       run_grid<<-foreach(a=all_YR_r,.combine =rbind)%do% data.frame(beg_week=beg_gri,
                                                                     end_week=end_gri,
-                                                                    YR=a)
+                                                                    YR=a,
+                                                                    cat=1)
     }
     
     
@@ -296,13 +305,29 @@ Out.Mod<-eventReactive(c(
     p_progress$set(value = NULL, message =message_Cross )
     
     pred_vals_all_promise<<-future_promise({
+      
+      #pkgload::load_all(paste0(getwd(),"/INLA"),export_all =F)
+      #inla.dynload.workaround()
+      
+      #inla.binary.install()
+      #inla.dynload.workaround()
+     
       res_m<-mymodel(formula0.2,df)
       theta_beg<<-res_m$internal.summary.hyperpar$mean 
-      foreach(a=1:nrow(run_grid),.combine =rbind)%do% get_weekly_prediction_4(a)
-      #foreach(a=1:nrow(run_grid),.combine =rbind)%do% get_weekly_prediction(a)
-      #readRDS("pred_eval_2013.rds")
+      pred_Eval<-foreach(a=1:nrow(run_grid),.combine =rbind)%do% get_weekly_prediction_4(a)
+     
+      
+      #pth<-"~/Library/CloudStorage/GoogleDrive-ewarsplusdemo@gmail.com/My Drive/ewars_Plus_demo_Files/"
+      
+      
+      #list_Save1<-list(pred_vals_all=pred_Eval,
+                       #res_promise=res_m)
+      #saveRDS(list_Save1,paste0(pth,"Model_pred_Eval.rds"),
+              #compress =T)
+      
+      pred_Eval
     },
-    packages =c("INLA","dplyr"),
+    packages =c("dplyr","INLA"),
     globals=c("df","year_eval","run_grid","YR.val",
               "get_weekly_prediction",
               "get_weekly_prediction_4",
@@ -318,6 +343,50 @@ Out.Mod<-eventReactive(c(
       finally(~cat("Cross validation finished",'\n'))
     p_progress$close()
     
+   ##Compute the endemic channel for each year in data
+    
+    years_dat<-sort(unique(var_names_New_model()$dat$year))
+    #names(surv_dat)
+    
+    dat.4.endemic<-var_names_New_model()$dat %>% 
+      dplyr::rename(cases=weekly_hospitalised_cases,
+                    pop=population) %>% 
+      dplyr::select(district,year,week,cases,pop)
+    
+    #z_outbreak_new<-1.1
+    get_endemic<-function(pp){
+      dat.4.endemic %>% 
+        dplyr::filter(!year==years_dat[pp] & !is.na(cases) ) %>% 
+        dplyr::mutate(rate=(cases/pop)*1e5) %>% 
+        dplyr::group_by(district,week) %>% 
+        dplyr::summarise(.groups="drop",
+                         mean_cases=mean(cases,na.rm =T),
+                         mean_rate=mean(rate,na.rm =T),
+                         sd_cases=sd(cases,na.rm =T),
+                         sd_rate=sd(rate,na.rm =T)) %>% 
+        dplyr::mutate(year=years_dat[pp]) %>% 
+        dplyr::select(district,year,week,mean_cases,sd_cases,mean_rate,sd_rate)
+    }
+    all_endemic<-foreach(a=1:length(years_dat),.combine =rbind)%do% get_endemic(a)
+    
+    list_Save_Db<-list(data_augmented=data_augmented,
+                       all_basis_vars=all_basis_vars,
+                       alarm_indicators=alarm_indicators,
+                       alarm_vars=alarm_vars,
+                       for_obs=for_obs,
+                       covar_to_Plot=covar_to_Plot,
+                       names_cov_Plot=names_cov_Plot,
+                       basis_var_n=basis_var_n,
+                       shape_file=var_names_New_model()$SHP,
+                       original_Input_data=var_names_New_model()$dat,
+                       nlags=nlag,
+                       other_covariates=add.var,
+                       all_endemic=all_endemic)
+    #pth<-"~/Library/CloudStorage/GoogleDrive-ewarsplusdemo@gmail.com/My Drive/ewars_Plus_demo_Files/"
+    
+    #saveRDS(list_Save_Db,paste0(pth,"ewars_Plus_DB_files.rds"),
+            #compress =T)
+    
     
     list(pred_vals_all_promise=pred_vals_all_promise,
          res_promise=res_promise,
@@ -328,6 +397,8 @@ Out.Mod<-eventReactive(c(
          for_obs=for_obs,
          covar_to_Plot=covar_to_Plot,
          names_cov_Plot=names_cov_Plot,
-         basis_var_n=basis_var_n)
+         basis_var_n=basis_var_n,
+         nlags=nlag,
+         all_endemic=all_endemic)
   },
   ignoreNULL=F)

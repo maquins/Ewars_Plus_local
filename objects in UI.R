@@ -681,7 +681,7 @@ ui_yes<-fluidPage(fluidRow(
            #dashboad_elements_Risk_mapping,
            dashboad_elements_New_model,
            dashboad_elements_New_model_pros,
-           
+           admin_page,
            dashboad_elements_III,
            
            dashboad_elements_IV
@@ -701,10 +701,7 @@ ui_yes_Restricted<-fluidPage(fluidRow(
          uiOutput('logout'))
 ),
 fluidRow(navbarPage("",
-                    dashboad_elements_restricted_I,
-                    
-                    dashboad_elements_II,
-                   # dashboad_elements_Risk_mapping,
+                    dashboad_elements_New_model_pros,
                     
                     dashboad_elements_III,
                    
@@ -731,7 +728,7 @@ fluidRow(navbarPage("",
                     
                     dashboad_elements_II,
                     
-                    admin_page,
+                    #admin_page,
                     
                     #dashboad_elements_Risk_mapping,
                     dashboad_elements_New_model,

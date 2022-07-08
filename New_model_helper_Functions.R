@@ -35,8 +35,8 @@ mymodel <- function(formula, data = df, family = "nbinomial", config = FALSE)
 {
   model <- inla(formula = formula, data = data, family = family, offset = log(E),
                 control.inla = list(strategy = 'adaptive'), 
-                control.compute = list(dic = TRUE, config = config, 
-                                       cpo = TRUE, return.marginals = T),
+                control.compute = list(dic = T, config = config, 
+                                       cpo = F, return.marginals = F),
                 control.fixed = list(correlation.matrix = TRUE, 
                                      prec.intercept = 1, prec = 1),
                 control.predictor = list(link = 1, compute = TRUE), 
@@ -52,7 +52,7 @@ mymodel2 <- function(formula, data = df, family = "nbinomial", config = FALSE)
   model <- inla(formula = formula, data = data, family = family, offset = log(E),
                 control.inla = list(strategy = 'adaptive'), 
                 control.compute = list(dic = TRUE, config = config, 
-                                       cpo = TRUE, return.marginals = T),
+                                       cpo = F, return.marginals = F),
                 control.fixed = list(correlation.matrix = TRUE, 
                                      prec.intercept = 1, prec = 1),
                 control.predictor = list(link = 1, compute = TRUE), 
@@ -66,14 +66,14 @@ mymodel3 <- function(formula, data = df, family = "nbinomial", config = FALSE)
 {
   model <- inla(formula = formula, data = data, family = family, offset = log(E),
                 control.inla = list(strategy = 'adaptive'), 
-                control.compute = list(dic = TRUE, config = config, 
-                                       cpo = TRUE, return.marginals = T),
+                control.compute = list(dic = F, config = config, 
+                                       cpo = F, return.marginals = F),
                 control.fixed = list(correlation.matrix = TRUE, 
                                      prec.intercept = 1, prec = 1),
                 control.predictor = list(link = 1, compute = TRUE), 
                 control.mode =list(restart=T,theta=theta_beg),
                 verbose = F,
-                num.threads="2:1")
+                num.threads="4:1")
                 #num.threads="6:1")
   #model <- inla.rerun(model)
   model
@@ -365,7 +365,7 @@ get_weekly_prediction_4<-function(pp){
   set.seed(4500)
   s <- 1000
   
-  xx <- inla.posterior.sample(s,pred_one,num.threads =2)
+  xx <- inla.posterior.sample(s,pred_one,num.threads =2,seed=4500)
   xx.s <- inla.posterior.sample.eval(function(...) c(theta[1], Predictor[idx.pred]), xx)
   #dim(xx.s)
   mpred<-length(idx.pred)
@@ -411,9 +411,24 @@ get_weekly_prediction_4<-function(pp){
   cat(paste('Total running time:',round(time_Cross[3]/60,2)),'mins\n\n')
   rm(xx)
   rm(xx.s)
+  
+  gc()
+  
+  week_lab<-paste0(run_grid[pp,]$beg_week,'_',run_grid[pp,]$end_week)
+  ypred_save<-cbind(year=year_Now,
+                           week=df_pred$T1[idx.pred],
+                           district=data_augmented$district[idx.pred],
+                           index=idx.pred,
+                           y.pred)
+  pth<-"~/Library/CloudStorage/GoogleDrive-ewarsplusdemo@gmail.com/My Drive/ewars_Plus_demo_Files/Cross_validation_Predictions/"
+  #out_sav_Nam<-paste0(pth,"Predictions_",year_Now,'_weeks_',week_lab,'.rds')
+  #saveRDS(ypred_save,out_sav_Nam,
+          #compress =T)
+  #rm(ypred_save)
+  rm(pred_vals)
   rm(y.pred)
   gc()
-  pred_vals
+  ypred_save
 }
 
 #pp<-1
@@ -449,7 +464,7 @@ get_weekly_prop_pred<-function(pp){
   set.seed(4500)
   s <- 1000
   
-  xx <- inla.posterior.sample(s,pred_one,num.threads =2)
+  xx <- inla.posterior.sample(s,pred_one,seed=34556)
   xx.s <- inla.posterior.sample.eval(function(...) c(theta[1], Predictor[idx.pred]), xx)
   #dim(xx.s)
   mpred<-length(idx.pred)
@@ -492,11 +507,22 @@ get_weekly_prop_pred<-function(pp){
   cat(paste('Total running time:',round(time_pred[3]/60,2)),'mins\n\n')
   rm(xx)
   rm(xx.s)
+  year_Now<-unique(pros_week$year)
+  #week_lab<-paste0(run_grid[pp,]$beg_week,'_',run_grid[pp,]$end_week)
+  ypred_save<-cbind(year=year_Now,
+                    week=df_pred$T1[idx.pred],
+                    district=dat_Now$district[idx.pred],
+                    index=idx.pred,
+                    y.pred)
+  pth<-"~/Library/CloudStorage/GoogleDrive-ewarsplusdemo@gmail.com/My Drive/ewars_Plus_demo_Files/Cross_validation_Predictions/"
+  #out_sav_Nam<-paste0(pth,"Predictions_",year_Now,'_weeks_',week_lab,'.rds')
+  #saveRDS(ypred_save,out_sav_Nam,
+  #compress =T)
+  #rm(ypred_save)
+  rm(pred_vals)
   rm(y.pred)
   gc()
-  #cor(pred_vals$fitted,pred_vals$predicted)
-  
-  pred_vals
+  ypred_save
 }
 
 output_dist_new_model<-selectInput(inputId = 'district_new',
@@ -543,7 +569,7 @@ create_input_UI_year<-function(var){
               "label = 'Year',",      
               'min=min(years.dat)+1,',
               'max=max(years.dat),',
-              'value =max(years.dat),',
+              'value =min(years.dat)+1,',
               'sep="",',
               'step=1)',
               

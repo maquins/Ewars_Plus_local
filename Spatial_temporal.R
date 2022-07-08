@@ -12,17 +12,24 @@ observeEvent(c(#input$population_New_model,
                
 #eval(parse(text=readLines("New_model_server_Script.R")))    
                
-##load INLA
+#load INLA
                #if(!dir.exists(paste0(getwd(),"/INLA"))){
-                 #untar("INLA_20.03.17.tar.gz")
+                 #inla_tar<-list.files(getwd(),pattern ='.gz|.zip')
+                 #if(str_detect(inla_tar,'.zip')){
+                   #unzip(inla_tar)
+                   
+                 #}else{
+                 #untar(inla_tar)
                  
                #}
                
+               #}
                
-               
-               #pkgload::load_all(paste0(getwd(),"/INLA"))
+       #pkgload::load_all(paste0(getwd(),"/INLA"),export_all =F)
            
-               #inla.dynload.workaround()
+               #INLA::inla.dynload.workaround()
+               #inla.binary.install()
+       #inla.load()
           
 
 dat_fl<-var_names_New_model()$dat
@@ -960,13 +967,10 @@ observeEvent(c(input$district_validation,
                  
                  cat(paste('Z_value::',input$z_outbreak_new),'\n\n')
                  #stop("i reached here okay ..") 
-                 for_endemic<-dat.4.endemic %>% 
-                   dplyr::filter(!year>=new_model_Year_validation & !is.na(cases) ) %>% 
-                   dplyr::mutate(rate=(cases/pop)*1e5) %>% 
-                   dplyr::group_by(district,week) %>% 
-                   dplyr::summarise(.groups="drop",mean=mean(rate,na.rm =T),
-                                    sd=sd(rate,na.rm =T)) %>% 
-                   dplyr::mutate(threshold=mean+input$z_outbreak_new*(sd))
+                 for_endemic<-Out.Mod()$all_endemic %>% 
+                   dplyr::filter(district==district_validation) %>% 
+                   dplyr::mutate(threshold_cases=mean_cases+input$z_outbreak_new*(sd_cases),
+                                 threshold_rate=mean_rate+input$z_outbreak_new*(sd_rate))
                  
                
                  
@@ -981,7 +985,8 @@ observeEvent(c(input$district_validation,
                      
                      runin_dat<-dat.4.endemic %>% 
                        dplyr::filter(!year>=new_model_Year_validation) %>% 
-                       dplyr::mutate(observed=(cases/pop)*1e5,
+                       dplyr::mutate(observed_cases=cases,
+                                     observed_rate=(cases/pop)*1e5,
                                      fitted=res$summary.fitted.values$mean[idx_runin],
                                      fitted=(fitted/pop)*1e5,
                                      fittedp25=res$summary.fitted.values$`0.025quant`[idx_runin],
@@ -989,12 +994,11 @@ observeEvent(c(input$district_validation,
                                      fittedp975=res$summary.fitted.values$`0.975quant`[idx_runin],
                                      fittedp975=(fittedp975/pop)*1e5,
                        ) %>% 
-                       dplyr::left_join(for_endemic,by=c("district","week")) %>% 
-                       dplyr::mutate(threshold=(threshold/pop)*1e5,
-                                     outbreak=observed>threshold,
-                                     observed_alarm=case_when(outbreak==1~observed,
+                       dplyr::left_join(for_endemic,by=c("district","year","week")) %>% 
+                       dplyr::mutate(outbreak=observed_cases>threshold_cases,
+                                     observed_alarm=case_when(outbreak==1~observed_rate,
                                                               TRUE~as.numeric(NA))) %>% 
-                       dplyr::select(district,year,week,observed,fitted,fittedp25,fittedp975,outbreak,threshold,observed_alarm)
+                       dplyr::select(district,year,week,observed_rate,fitted,fittedp25,fittedp975,outbreak,threshold_rate,observed_alarm)
                      
                      
                      
@@ -1007,18 +1011,22 @@ observeEvent(c(input$district_validation,
                      date_week_runin<-seq.Date(as.Date(paste0(beg.year,'-01-01')),as.Date(paste0(end.runin.year,'-12-31')),by='week')[-1]
                      
                      data_plot_RuninB<-data_plot_Runin %>% 
-                       dplyr::select(observed,fitted,fittedp25,
+                       dplyr::select(observed_rate,fitted,fittedp25,
                                      fittedp975,outbreak,
-                                     threshold,observed_alarm)
+                                     threshold_rate,observed_alarm) %>% 
+                       dplyr::rename(observed=observed_rate,
+                                     threshold=threshold_rate)
                      
                      data_use_Runin_xts<-xts(data_plot_RuninB,order.by =date_week_runin,
                                              frequency=7)
                      
                      data_plot_RuninB1<-data_plot_Runin %>% 
                        dplyr::mutate(date=date_week_runin) %>% 
-                       dplyr::select(date,observed,fitted,fittedp25,
+                       dplyr::select(date,observed_rate,fitted,fittedp25,
                                      fittedp975,outbreak,
-                                     threshold,observed_alarm)
+                                     threshold_rate,observed_alarm)%>% 
+                       dplyr::rename(observed=observed_rate,
+                                     threshold=threshold_rate)
                      
                      data_plot_RuninB1_check<<-data_plot_RuninB1
                      
@@ -1074,33 +1082,45 @@ Out.Mod()$pred_vals_all_promise %...>% {
   #res<-mod_sp %...>%
     
   data_use<-pred_vals_all %>%  
-    dplyr::filter(district==district_validation) %>% 
-    dplyr::select(district,year,week,mu_mean,size_mean,observed,predicted,
-                  p25,p975,index) 
+    dplyr::filter(district==district_validation & year>=new_model_Year_validation) 
   
-  data_use$pop<-dat.4.endemic$pop[data_use$index]
+  prob_long<<-reshape2::melt(data_use,c("district","year","week")) %>% 
+    dplyr::left_join(for_endemic,by=c("district","year","week")) %>% 
+    dplyr::mutate(indicator=as.numeric(value>threshold_cases))
   
-  data_use_<<-data_use %>% 
-    dplyr::mutate(mu_mean=(mu_mean/pop)*1e5,
-                  observed1=(observed/pop)*1e5,
+  compute_probs<<-prob_long %>% 
+    dplyr::group_by(district,year,week) %>% 
+    dplyr::summarise(.groups="drop",
+                     predicted=mean(value),
+                     p25=quantile(value,2.5/100),
+                     p50=quantile(value,50/100),
+                     p975=quantile(value,97.5/100),
+                     Total_obs=n(),
+                     prob=sum(indicator)/Total_obs)%>% 
+    dplyr::left_join(dat.4.endemic,by=c("district","year","week"))
+  
+  
+
+  data_use_<<-compute_probs %>% 
+    dplyr::left_join(for_endemic,by=c("district","year","week")) %>% 
+    dplyr::mutate(observed1=(cases/pop)*1e5,
                   observed=case_when(is.na(observed1)~0,
                                      TRUE~observed1),
                   predicted=(predicted/pop)*1e5,
                   p25=(p25/pop)*1e5,
                   p975=(p975/pop)*1e5) %>% 
-    dplyr::left_join(for_endemic,by=c("district","week")) %>% 
-    dplyr::mutate(outbreak=observed>threshold,
+    dplyr::mutate(outbreak=cases>threshold_cases,
                   observed_alarm=case_when(outbreak==1~observed,
                                            TRUE~as.numeric(NA)))
   
-  probs<-pnbinom(data_use_$threshold, mu =data_use_$mu_mean, size = data_use_$size_mean,lower.tail =F)
+  
   cat("computed probs \n")
-  print(probs)
+  print(data_use_$prob)
   idx.comp<<-which(!is.na(data_use_$outbreak))
   
   
   roc_try<-try(reportROC(gold=as.numeric(data_use_$outbreak)[idx.comp],
-                         predictor=probs[idx.comp]),outFile =warning("please.."))
+                         predictor=data_use_$prob[idx.comp]),outFile =warning("please.."))
   
   roc_tab_names<-c("Cutoff","AUC","AUC.SE","AUC.low","AUC.up","P","ACC",
                    "ACC.low","ACC.up","SEN","SEN.low","SEN.up",
@@ -1115,7 +1135,7 @@ Out.Mod()$pred_vals_all_promise %...>% {
     roc_report<-kdd
   }else{
     roc_report<-reportROC(gold=as.numeric(data_use_$outbreak)[idx.comp],
-                          predictor=probs[idx.comp])
+                          predictor=data_use_$prob[idx.comp])
   }
   
   if(roc_report$Cutoff%in% c(NA,-Inf,NaN,Inf)){
@@ -1144,7 +1164,7 @@ Out.Mod()$pred_vals_all_promise %...>% {
                       "Negative Predictive Value (NPV)",roc_report$NPV,roc_report$NPV.low,roc_report$NPV.up)  
     
     data_use_a<-data_use_ %>% 
-      dplyr::mutate(prob_exceed=probs,
+      dplyr::mutate(prob_exceed=prob,
                     cutoff=as.numeric(roc_report$Cutoff),
                     validation_alarm=case_when((prob_exceed>=cutoff)~prob_exceed,
                                                TRUE~as.numeric(NA)))
@@ -1155,7 +1175,9 @@ Out.Mod()$pred_vals_all_promise %...>% {
   
   data_use_AA<-data_use_a %>% 
     dplyr::mutate(Trend=1:n(),
-                  lab_week=paste0(year,'_',str_pad(week,width = 2,side="left",pad='0')))
+                  lab_week=paste0(year,'_',str_pad(week,width = 2,side="left",pad='0'))) %>% 
+    dplyr::rename(threshold=threshold_rate)
+  
   Num_YYears<-length(unique(data_use_AA$year))
   breaks_p<-seq(1,nrow(data_use_AA),4*Num_YYears)
   
@@ -1198,8 +1220,9 @@ Out.Mod()$pred_vals_all_promise %...>% {
   date_week<-seq.Date(as.Date(paste0(min(year_VAL),'-01-01')),as.Date(paste0(max(year_VAL),'-12-31')),by='week')[-1]
   
   data_use_b<-data_use_a %>% 
-    dplyr::select(predicted,observed,threshold,
-                  cutoff,prob_exceed,validation_alarm)
+    dplyr::select(predicted,observed,threshold_rate,
+                  cutoff,prob_exceed,validation_alarm)%>% 
+    dplyr::rename(threshold=threshold_rate)
   
   data_use_xts<-xts(data_use_b,order.by =date_week,
                     frequency=7)

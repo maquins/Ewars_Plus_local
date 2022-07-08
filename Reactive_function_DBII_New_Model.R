@@ -16,16 +16,23 @@ observeEvent(input$dat_prospective,{
   boundary_file$district<-as.numeric(boundary_file$district)
   
   #if(!dir.exists(paste0(getwd(),"/INLA"))){
-    #untar("INLA_20.03.17.tar.gz")
-    
+    #inla_tar<-list.files(getwd(),pattern ='.gz|.zip')
+   # if(str_detect(inla_tar,'.zip')){
+      #unzip(inla_tar)
+      
+    #}else{
+      #untar(inla_tar)
+      
+    #}
   #}
+    
   
   
-  
-  
-  #pkgload::load_all(paste0(getwd(),"/INLA"))
+  #pkgload::load_all(paste0(getwd(),"/INLA"),export_all =F)
+  #inla.dynload.workaround()
   
   #inla.dynload.workaround()
+  #inla.binary.install()
 
   ## read in uploaded data
   
@@ -202,12 +209,14 @@ observeEvent(input$dat_prospective,{
     forecast_dat<<-foreach(a=1:nrow(pros_week),
                           .combine =rbind,
                           .export =export_tables)%do% get_weekly_prop_pred(a)
-    #saveRDS(forecast_dat,"forecast_dat_2022_04_13.rds")
+    #saveRDS(forecast_dat,"forecast_dat_2022_07_06.rds")
+    #forecast_dat<<-readRDS("forecast_dat_2022_07_06.rds")
+    
     p_progress_pros$close()
   })
   #time_52[3]/60
   
-  #forecast_dat<<-readRDS("forecast_dat_2022_04_13.rds")
+  
   
   ## read in validation data
   
@@ -217,6 +226,9 @@ observeEvent(input$dat_prospective,{
   
   dat.4.endemic<<-data_augmented[,sel_var_endemic]
   names(dat.4.endemic)<-c(base_vars,"cases","pop")
+  
+  dat.4.endemic_pros<<-data_Combined[,sel_var_endemic]
+  names(dat.4.endemic_pros)<-c(base_vars,"cases","pop")
   
   last_Yr_aug<-max(data_augmented$year,na.rm =T)
   if(is.null(input$new_model_Year_validation)){
@@ -232,7 +244,8 @@ observeEvent(input$dat_prospective,{
   
   ## now work with specific week
   observeEvent(c(input$district_prospective,
-                 input$z_outbreak_new),{
+                 input$z_outbreak_new,
+                 input$new_model_Year_validation),{
         
                    if(is.null(input$district_prospective)){
                      district_prospective<-sort(unique(prediction_Data$district))[1]
@@ -246,62 +259,99 @@ observeEvent(input$dat_prospective,{
                        z_outbreak_new<-input$z_outbreak_new
                      } 
                    
-                   for_endemic<-dat.4.endemic %>% 
-                     dplyr::filter(!is.na(cases) & !year>=year_eval) %>% 
-                     dplyr::mutate(rate=(cases/pop)*1e5) %>% 
-                     dplyr::group_by(district,week) %>% 
-                     dplyr::summarise(.groups="drop",mean=mean(rate,na.rm =T),
-                                      sd=sd(rate,na.rm =T)) %>% 
-                     dplyr::mutate(threshold=mean+z_outbreak_new*(sd))
+                   if(is.null(input$new_model_Year_validation)){
+                     new_model_Year_validation<-max(Out.Mod()$data_augmented$year)
+                   }else{
+                     new_model_Year_validation<-input$new_model_Year_validation
+                     
+                   }
+                   for_endemic<-Out.Mod()$all_endemic %>% 
+                     dplyr::filter(district==district_prospective) %>% 
+                     dplyr::mutate(threshold_cases=mean_cases+input$z_outbreak_new*(sd_cases),
+                                   threshold_rate=mean_rate+input$z_outbreak_new*(sd_rate))
                    
                  
                    pred_vals_all_promise %...>%  
                      {
                        pred_vals_all<<-.
-    data_use<-pred_vals_all %>% 
-      dplyr::filter(district==district_prospective & year==last_Yr_aug) %>% 
-      dplyr::select(district,year,week,mu_mean,size_mean,observed,predicted,
-                    p25,p975,index) 
+                       
+                       pros_forcasted<-forecast_dat %>% 
+                         data.frame() %>% 
+                         dplyr::select(-index) %>% 
+                         dplyr::filter(district==district_prospective) 
+                       
+                       data_use<-pred_vals_all %>%  
+                         data.frame() %>% 
+                         dplyr::filter(district==district_prospective & year>=new_model_Year_validation) 
+   
     
-    pros_forcasted<-forecast_dat %>% 
-      dplyr::filter(district==district_prospective) %>% 
-      dplyr::select(district,year,week,mu_mean,size_mean,observed,predicted,
-                    p25,p975,pop,index) 
+                       prob_long<<-reshape2::melt(data_use,c("district","year","week")) %>% 
+                         dplyr::left_join(for_endemic,by=c("district","year","week")) %>% 
+                         dplyr::mutate(indicator=as.numeric(value>threshold_cases))
+                       
+                       for_endemic_forecast<-for_endemic %>% 
+                         dplyr::filter(year==last_Yr_aug) %>% 
+                         dplyr::select(-year)
+                       
+                       prob_long_forecast<<-reshape2::melt(pros_forcasted,c("district","year","week")) %>% 
+                         dplyr::left_join(for_endemic_forecast,by=c("district","week")) %>% 
+                         dplyr::mutate(indicator=as.numeric(value>threshold_cases))
+                       
+                       compute_probs<<-prob_long %>% 
+                         dplyr::group_by(district,year,week) %>% 
+                         dplyr::summarise(.groups="drop",
+                                          predicted=mean(value),
+                                          p25=quantile(value,2.5/100),
+                                          p50=quantile(value,50/100),
+                                          p975=quantile(value,97.5/100),
+                                          Total_obs=n(),
+                                          prob=sum(indicator)/Total_obs)%>% 
+                         dplyr::left_join(dat.4.endemic,by=c("district","year","week"))
+                       
+                       compute_probs_forecast<<-prob_long_forecast %>% 
+                         dplyr::group_by(district,year,week) %>% 
+                         dplyr::summarise(.groups="drop",
+                                          predicted=mean(value),
+                                          p25=quantile(value,2.5/100),
+                                          p50=quantile(value,50/100),
+                                          p975=quantile(value,97.5/100),
+                                          Total_obs=n(),
+                                          prob=sum(indicator)/Total_obs)%>% 
+                         dplyr::left_join(dat.4.endemic_pros,by=c("district","year","week"))
+                       
+                       
+                       
+                       data_use_<<-compute_probs %>% 
+                         dplyr::left_join(for_endemic,by=c("district","year","week")) %>% 
+                         dplyr::mutate(observed1=(cases/pop)*1e5,
+                                       observed=case_when(is.na(observed1)~0,
+                                                          TRUE~observed1),
+                                       predicted=(predicted/pop)*1e5,
+                                       p25=(p25/pop)*1e5,
+                                       p975=(p975/pop)*1e5) %>% 
+                         dplyr::mutate(outbreak=cases>threshold_cases,
+                                       observed_alarm=case_when(outbreak==1~observed,
+                                                                TRUE~as.numeric(NA)))
     
-    data_use$pop<-dat.4.endemic$pop[data_use$index]
-    
-    data_use_<-data_use %>% 
-      dplyr::mutate(mu_mean=(mu_mean/pop)*1e5,
-                    observed=(observed/pop)*1e5,
+    pros_forcasted_<-compute_probs_forecast %>% 
+      dplyr::left_join(for_endemic_forecast,by=c("district","week")) %>% 
+      dplyr::mutate(observed1=(cases/pop)*1e5,
+                    observed=case_when(is.na(observed1)~0,
+                                       TRUE~observed1),
                     predicted=(predicted/pop)*1e5,
                     p25=(p25/pop)*1e5,
                     p975=(p975/pop)*1e5) %>% 
-      dplyr::left_join(for_endemic,by=c("district","week")) %>% 
-      dplyr::mutate(outbreak=observed>threshold,
+      dplyr::mutate(outbreak=cases>threshold_cases,
                     observed_alarm=case_when(outbreak==1~observed,
                                              TRUE~as.numeric(NA)))
     
-    pros_forcasted_<-pros_forcasted %>% 
-      dplyr::mutate(mu_mean=(mu_mean/pop)*1e5,
-                    observed=(observed/pop)*1e5,
-                    predicted=(predicted/pop)*1e5,
-                    p25=(p25/pop)*1e5,
-                    p975=(p975/pop)*1e5) %>% 
-      dplyr::left_join(for_endemic,by=c("district","week")) %>% 
-      dplyr::mutate(outbreak=observed>threshold,
-                    observed_alarm=case_when(outbreak==1~observed,
-                                             TRUE~as.numeric(NA)))
-    
-    probs<-pnbinom(data_use_$threshold, mu =data_use_$mu_mean, size = data_use_$size_mean,lower.tail =F)
-    probs_forecast<-pnbinom(pros_forcasted_$threshold, mu =pros_forcasted_$mu_mean, size = pros_forcasted_$size_mean,lower.tail =F)
-    
-    print(probs)
-    idx.comp<-which(!is.na(data_use_$outbreak))
-    
+    cat("computed probs \n")
+    print(data_use_$prob)
+    idx.comp<<-which(!is.na(data_use_$outbreak))
     
     
     roc_try<-try(reportROC(gold=as.numeric(data_use_$outbreak)[idx.comp],
-                               predictor=probs[idx.comp]),outFile =warning("please.."))
+                           predictor=data_use_$prob[idx.comp]),outFile =warning("please.."))
     
     roc_tab_names<-c("Cutoff","AUC","AUC.SE","AUC.low","AUC.up","P","ACC",
                      "ACC.low","ACC.up","SEN","SEN.low","SEN.up",
@@ -316,7 +366,7 @@ observeEvent(input$dat_prospective,{
       roc_report<-kdd
     }else{
       roc_report<-reportROC(gold=as.numeric(data_use_$outbreak)[idx.comp],
-                            predictor=probs[idx.comp])
+                            predictor=data_use_$prob[idx.comp])
     }
     
     if(roc_report$Cutoff%in% c(NA,-Inf,NaN,Inf)){
@@ -345,7 +395,7 @@ observeEvent(input$dat_prospective,{
                         "Negative Predictive Value (NPV)",roc_report$NPV,roc_report$NPV.low,roc_report$NPV.up)  
       
       data_use_a<-data_use_ %>% 
-        dplyr::mutate(prob_exceed=probs,
+        dplyr::mutate(prob_exceed=prob,
                       cutoff=as.numeric(roc_report$Cutoff),
                       validation_alarm=case_when((prob_exceed>=cutoff)~prob_exceed,
                                                  TRUE~as.numeric(NA)))
@@ -353,7 +403,7 @@ observeEvent(input$dat_prospective,{
     
     
     pros_forcasted_a<-pros_forcasted_ %>% 
-      dplyr::mutate(prob_exceed=probs_forecast,
+      dplyr::mutate(prob_exceed=prob,
                     cutoff=roc_report$Cutoff,
                     alarm=as.numeric((prob_exceed>=cutoff)))
     
@@ -365,11 +415,11 @@ observeEvent(input$dat_prospective,{
                     outbreak_probability=prob_exceed)
     
     
-    dat_eval_merge<-for_endemic %>% 
-      dplyr::mutate(outbreak_moving=round(mean,6),
-                    outbreak_moving_sd=sd,
-                    outbreak_moving_limit=round(threshold,6),
-                    endemic_chanel=round(threshold,6)) %>% 
+    dat_eval_merge<-for_endemic_forecast %>% 
+      dplyr::mutate(outbreak_moving=round(mean_rate,6),
+                    outbreak_moving_sd=sd_rate,
+                    outbreak_moving_limit=round(threshold_rate,6),
+                    endemic_chanel=round(threshold_rate,6)) %>% 
       dplyr::select(district,week,outbreak_moving,outbreak_moving_sd,outbreak_moving_limit,
                     endemic_chanel) %>% 
       dplyr::filter(district==district_prospective) %>% 
@@ -551,12 +601,16 @@ observeEvent(input$dat_prospective,{
     
     output$uploaded_pros<-renderDataTable(data.table(dat_pros_Dis1))
     
+    #vars.keep<-c("district","year","week","pop","endemic_chanel","predicted",
+                 #"p25","p975","outbreak","alarm_threshold","outbreak_probability","alarm",
+                 #"alarm_signal","response_cat")
+    
     vars.keep<-c("district","year","week","pop","endemic_chanel","predicted",
-                 "p25","p975","outbreak","alarm_threshold","outbreak_probability","alarm",
-                 "alarm_signal","response_cat")
+                 "p25","p975","alarm_threshold","outbreak_probability","alarm",
+                 "alarm_signal")
     tem.d1<-tem.d[,vars.keep]
     
-    var.round<-c("endemic_chanel","predicted","p25","p975","outbreak","alarm_threshold",
+    var.round<-c("endemic_chanel","predicted","p25","p975","alarm_threshold",
                  "outbreak_probability")
     
     tem.d2<-tem.d1 %>% 
