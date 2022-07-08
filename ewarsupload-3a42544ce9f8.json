@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "ewarsupload",
+  "private_key_id": "3a42544ce9f855953c78387bc79980992dc97f9c",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7CP1VnQv/7bH/\n8QgDoTqQj3PMdU47Rej5eKXeoGwiIDCtAv+q5Mdr6EkvstK7LFJc7qcIjkn8b26k\nXlt88z94W6nbfXNzLeWWvNjtJMrfDWhE1rXS8tlFvpQnwaBD4G/oySTmzbrKEpMz\ny5kzmUym1jYQbbLBJTBsysrztVQTofr5hGF4l4a7gsCzS93x03XaP6gOjGjJ0kZy\nTbIwdFUWBYXkONyhaE+Khr7pOp9+iXrwKSIv0uvh0GxDv3nqVP+FLCq+doe/YTwl\nZ17CUwFQMENNqrVNanS/1Rl2o/zafgd6Ncar9QSfe5p6AjKYFpjE2WSm9kU85pX1\nlChdCE8RAgMBAAECggEAAXelwSpdFzzD/5LiXLZC8Ye77AKO7WZ0LaI1hER0RLpF\nl33lXUUJOX6riv0XVnztB9Se09wwlr3rEM1lYLAUiJBeNJ4h2JP8xUzQU4qihX3N\n78hSyd0PjlKwnTU8LtF6dJ7rXrIw1ngEgUywyYJY4xrddriIRVKniXBNMlHzCb+2\npZD0F/lUgMR+lwoTwmLDACZCKIk8ivZy+JHUiIASqp4A5Jo2JqoOSPsge+7k0JIe\nQwz6A55gaRcOmOEvC3rqSPoM1NJvclNLp0BccBWNK0WQdUc2LrQv+2n4d8kg7+uT\n3mZ0bJh1OAUdcx2XGE7TgC5o+gZqSFrzK1growNNxwKBgQDjbIkAxykXxQJUWU1+\ntW19OghZvsGLunYor30RaGNHHB0neAgz7uLM1hCQ1DM/at6+3VUy6T0/BXOarnwz\nEhfqin8vKKuXwHQqauQu9bCmNY0TCkS8sfcDb5ATfQsDWkJDGwGoKE/eA2Z/hvYU\nI5+FAfF7J0gGf/C7gVnxRYd5UwKBgQDSiUfkAcvMxGG1MWpEHoOnA/9jfdEhgQyn\nARFNjUMs//a4PVYKbeARv3WIlfX91/QCHADLtkAF6tFQvkg11a+hmtST68uiMdbs\ncjpRL3in3hw6Ye8pByTEFEwNe1VmLudQNTgwlEzeAuWnkoTrTj/oBqntw11u5ity\nlGvZEI/1iwKBgQCcofbl60VZEp3dHDhsaWZEVkDEFsZUhxK0SNE5uQyPQESwF1KG\n+iOIcnKsXQoCxoctK2FvlAZTrlyFj2EJB5AjQEoCX992v90CDeaklSCaCM3l7C+V\nSnjXC/JOCdQY9gQnFaWZfFItlWf1sy0uh65pPAJmEJLhryJM8fTRYFLC8wKBgCpO\nHZ0KY1pdJ8kSCelwPEImQn5KfOh/lvxD8ackuJflQz1YTd7An2LRlxuADrMYXtbB\nq8NDdu/5dGAGLFps+uK9SvQCUKPh4e8XMPK5WERbFE8C+NzEq7We4n1fCBUFXcO3\nPfg9BIkkCeO3RHBIA/1qwWCefjrXk2ltu5Idit/rAoGBAN1D1IM2F02l59VX46Gd\nZK7tDpm1fwTQUyVlMJpzEyDTsesFhAlI44RVyYsTfn0xN2IAr63RUdaTpYX6/kRU\nzXLRpWj3EM++In0KCb69MvG/CGfuA+cm4HANER4H7z3G5jCro222xihb2fkmXKcg\n+NddQ285eJTqk4CNqrLs/XWY\n-----END PRIVATE KEY-----\n",
+  "client_email": "ewars-upload@ewarsupload.iam.gserviceaccount.com",
+  "client_id": "117572145113921973389",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/ewars-upload%40ewarsupload.iam.gserviceaccount.com"
+}
