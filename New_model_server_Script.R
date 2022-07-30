@@ -26,7 +26,8 @@ var_names_New_model <- eventReactive(
       
       
       inFile <- input$dat_new_Model
-      data<-get_D_ata(inFile$datapath)
+      data<-get_D_ata(inFile$datapath) %>% 
+        dplyr::filter(!is.na(district))
       #print("from vars_names")
       #print(head(data))
       #print("from vars_names...")
