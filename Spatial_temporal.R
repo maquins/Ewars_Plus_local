@@ -1149,7 +1149,7 @@ Out.Mod()$pred_vals_all_promise %...>% {
                       "Negative Predictive Value (NPV)",roc_report$NPV,roc_report$NPV.low,roc_report$NPV.up)
     
     data_use_a<-data_use_ %>% 
-      dplyr::mutate(prob_exceed=probs,
+      dplyr::mutate(prob_exceed=prob,
                     cutoff=NA,
                     validation_alarm=as.numeric(NA))
     
