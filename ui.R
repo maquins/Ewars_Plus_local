@@ -9,6 +9,7 @@ suppressMessages(library(xts,warn.conflicts =F))
 suppressMessages(library(dygraphs,warn.conflicts =F))
 suppressMessages(library(leaflet,warn.conflicts =F))
 
+shiny::shinyOptions(shiny.maxRequestSize=250*1024^2)
 
 source("objects in UI.R")
 source("new_model_UI_elements_Compute.R")
