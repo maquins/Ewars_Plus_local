@@ -6,6 +6,8 @@
   #}
 #}
 
+options(shiny.maxRequestSize=250*1024^2)
+getShinyOption("shiny.maxRequestSize")
 
 suppressMessages(library(plyr,warn.conflicts =F))## This package should be loaded before dplyr
 suppressMessages(library(dplyr,warn.conflicts =F))
